@@ -1,0 +1,101 @@
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"log"
+	"net/http"
+)
+
+var (
+	token = "5566031010:AAEcZzK92iFAYyoCqSck_TEtpGou4AlQEoY"
+)
+
+type response struct {
+	Result []update `json:"result"`
+}
+
+type update struct {
+	UpdateID int     `json:"update_id"`
+	Message  message `json:"message,omitempty"`
+}
+
+type message struct {
+	Chat    chat     `json:"chat"`
+	From    from     `json:"from"`
+	Text    string   `json:"text"`
+	ReplyTo *message `json:"reply_to_message,omitempty"`
+}
+
+type chat struct {
+	ID int `json:"id"`
+}
+
+type from struct {
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+}
+
+func handleError(err error) {
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func getUpdates(token string, offset int, timeout int) {
+	for {
+		url := fmt.Sprintf("https://api.telegram.org/bot%s/getUpdates?offset=%d?timeout=%d", token, offset, timeout)
+		res, err := http.Get(url)
+		handleError(err)
+		defer res.Body.Close()
+
+		resBytes, err := ioutil.ReadAll(res.Body)
+		handleError(err)
+
+		var resp response
+
+		err = json.Unmarshal(resBytes, &resp)
+		handleError(err)
+		updates := resp.Result
+
+		if len(updates) == 0 {
+			continue
+		}
+
+		for _, update := range updates {
+			offset = update.UpdateID + 1
+			if update.Message.ReplyTo != nil && update.Message.ReplyTo.Chat.ID != 0 {
+				log.Printf("Received reacted message from %s %s in chat %d with text: %s", update.Message.From.FirstName, update.Message.From.LastName, update.Message.ReplyTo.Chat.ID, update.Message.ReplyTo.Text)
+				// Add your code to collect the reacted message here
+			}
+		}
+	}
+}
+
+func command(command string) string {
+
+	/*var resp string
+	cmd := strings.Split(command, " ")
+	switch cmd[0] {
+	case "/track":
+		updateTable(cmd[1])
+		resp = cmd[1] + " is processing.."
+	default:
+		resp = "/track ID"
+	}*/
+
+	resp := command
+	return resp
+}
+
+func updateTable(id string) {
+
+	//dynamodb id update
+
+}
+
+func main() {
+	getUpdates(token, 0, 30)
+	//lambda.Start(handler)
+}
